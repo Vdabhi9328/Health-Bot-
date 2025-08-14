@@ -3,16 +3,33 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+// Validate email configuration
+const validateEmailConfig = () => {
+  const required = ['EMAIL_USER', 'EMAIL_PASS'];
+  const missing = required.filter(key => !process.env[key]);
+  
+  if (missing.length > 0) {
+    throw new Error(`Missing email configuration: ${missing.join(', ')}`);
+  }
+};
+
 // Setup transporter
-const transporter = nodemailer.createTransport({
-  host: process.env.EMAIL_HOST || 'smtp.gmail.com',
-  port: parseInt(process.env.EMAIL_PORT || '587', 10),
-  secure: false,
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
+const createTransporter = () => {
+  validateEmailConfig();
+  
+  return nodemailer.createTransport({
+    host: process.env.EMAIL_HOST || 'smtp.gmail.com',
+    port: parseInt(process.env.EMAIL_PORT || '587', 10),
+    secure: false,
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS,
+    },
+    tls: {
+      rejectUnauthorized: false
+    }
+  });
+};
 
 // ✅ Generate 6-digit OTP
 export const generateOTP = () => {
@@ -22,6 +39,7 @@ export const generateOTP = () => {
 // ✅ Send OTP Email
 export const sendOTPEmail = async (email, otp, userName) => {
   try {
+    const transporter = createTransporter();
     const fromName = process.env.EMAIL_FROM || `"HelthBot" <${process.env.EMAIL_USER}>`;
 
     const mailOptions = {
@@ -41,6 +59,7 @@ export const sendOTPEmail = async (email, otp, userName) => {
               <h3 style="color: #667eea; font-size: 32px; margin: 0;">${otp}</h3>
             </div>
             <p style="color: #666;">This OTP is valid for 10 minutes.</p>
+            <p style="color: #666; font-size: 12px; margin-top: 20px;">If you didn't request this verification, please ignore this email.</p>
           </div>
         </div>
       `,
@@ -51,18 +70,41 @@ export const sendOTPEmail = async (email, otp, userName) => {
     return true;
   } catch (error) {
     console.error('❌ Failed to send OTP email:', error);
-    throw new Error('Failed to send OTP email');
+    if (error.code === 'EAUTH') {
+      throw new Error('Email authentication failed. Please check your email credentials.');
+    } else if (error.code === 'ECONNECTION') {
+      throw new Error('Failed to connect to email server. Please check your email configuration.');
+    } else {
+      throw new Error('Failed to send OTP email. Please try again later.');
+    }
   }
 };
 
 // ✅ Verify transporter connection
 export const verifyEmailConnection = async () => {
   try {
+    const transporter = createTransporter();
     await transporter.verify();
     console.log('✅ Email transporter is ready');
     return true;
   } catch (error) {
     console.error('❌ Email transporter connection failed:', error.message);
+    return false;
+  }
+};
+
+// ✅ Test email configuration
+export const testEmailConfig = async () => {
+  try {
+    const isConnected = await verifyEmailConnection();
+    if (!isConnected) {
+      throw new Error('Email connection test failed');
+    }
+    
+    console.log('✅ Email configuration is valid');
+    return true;
+  } catch (error) {
+    console.error('❌ Email configuration test failed:', error.message);
     return false;
   }
 };

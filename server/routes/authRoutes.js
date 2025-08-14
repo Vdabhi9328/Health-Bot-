@@ -9,7 +9,7 @@ const router = express.Router();
 
 // Rate limiter for OTP requests
 const otpLimiter = rateLimit({
-  windowMs: 60 * 1000, // 1 minute
+  windowMs: 60 * 100, // 1 minute
   max: 1,
   message: {
     success: false,
@@ -92,7 +92,12 @@ router.post('/verify-otp', async (req, res) => {
 
     await user.save();
 
-    return res.status(200).json({ success: true, message: 'Email verified and account created successfully', email: user.email });
+    return res.status(200).json({ 
+      success: true, 
+      message: 'Email verified and account created successfully', 
+      email: user.email,
+      password: req.body.password // Return the plain password for auto-fill
+    });
   } catch (err) {
     console.error(err.message);
     return res.status(500).json({ success: false, message: 'OTP verification failed' });
