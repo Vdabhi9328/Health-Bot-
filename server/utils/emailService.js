@@ -13,7 +13,6 @@ const validateEmailConfig = () => {
   }
 };
 
-// Setup transporter
 const createTransporter = () => {
   validateEmailConfig();
   
@@ -31,12 +30,10 @@ const createTransporter = () => {
   });
 };
 
-// ✅ Generate 6-digit OTP
 export const generateOTP = () => {
   return Math.floor(100000 + Math.random() * 900000).toString();
 };
 
-// ✅ Send OTP Email
 export const sendOTPEmail = async (email, otp, userName) => {
   try {
     const transporter = createTransporter();
@@ -66,10 +63,10 @@ export const sendOTPEmail = async (email, otp, userName) => {
     };
 
     const info = await transporter.sendMail(mailOptions);
-    console.log('✅ Email sent to', email, '| Message ID:', info.messageId);
+    console.log('Email sent to', email, '| Message ID:', info.messageId);
     return true;
   } catch (error) {
-    console.error('❌ Failed to send OTP email:', error);
+    console.error('Failed to send OTP email:', error);
     if (error.code === 'EAUTH') {
       throw new Error('Email authentication failed. Please check your email credentials.');
     } else if (error.code === 'ECONNECTION') {
@@ -101,10 +98,10 @@ export const testEmailConfig = async () => {
       throw new Error('Email connection test failed');
     }
     
-    console.log('✅ Email configuration is valid');
+    console.log('Email configuration is valid');
     return true;
   } catch (error) {
-    console.error('❌ Email configuration test failed:', error.message);
+    console.error('Email configuration test failed:', error.message);
     return false;
   }
 };
