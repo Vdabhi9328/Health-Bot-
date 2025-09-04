@@ -2,8 +2,13 @@ import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import cookieParser from 'cookie-parser';
 import authRoutes from './routes/authRoutes.js';
 import doctorRoutes from './routes/doctorRoutes.js';
+import symptomsRoutes from './routes/symptomsRoutes.js';
+import appointmentRoutes from './routes/appointmentRoutes.js';
+import chatRoutes from './routes/chatRoutes.js';
+import prescriptionRoutes from './routes/prescriptionRoutes.js';
 import path from 'path';
 
 dotenv.config();
@@ -11,19 +16,20 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-const requiredEnvVars = ['MONGODB_URI', 'JWT_SECRET', 'EMAIL_USER', 'EMAIL_PASS'];
-const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
+// Set default environment variables if not provided
+process.env.MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/healthcare-app';
+process.env.JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-this-in-production';
+process.env.EMAIL_USER = process.env.EMAIL_USER || 'your-email@gmail.com';
+process.env.EMAIL_PASS = process.env.EMAIL_PASS || 'your-app-password';
+// Expect GEMINI_API_KEY to be provided via environment (.env)
 
-if (missingEnvVars.length > 0) {
-  console.error('Missing required environment variables:', missingEnvVars.join(', '));
-  console.error('Please check your .env file and ensure all required variables are set.');
-  process.exit(1);
-}
+console.log('Environment variables loaded. Using defaults for development.');
 
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:5173',
+  origin: process.env.CLIENT_URL || 'http://localhost:3000',
   credentials: true
 }));
+app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -38,6 +44,10 @@ mongoose.connect(process.env.MONGODB_URI)
 
 app.use('/api/auth', authRoutes);
 app.use('/api/doctors', doctorRoutes);
+app.use('/api', symptomsRoutes);
+app.use('/api/appointments', appointmentRoutes);
+app.use('/api', chatRoutes);
+app.use('/api', prescriptionRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({ 
@@ -64,6 +74,18 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(process.cwd(), 'client', 'dist', 'index.html'));
 });
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+});
+
+server.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(`Port ${PORT} is already in use. Trying port ${PORT + 1}...`);
+    const newPort = PORT + 1;
+    const newServer = app.listen(newPort, () => {
+      console.log(`Server running on port ${newPort}`);
+    });
+  } else {
+    console.error('Server error:', err);
+  }
 });

@@ -105,3 +105,204 @@ export const testEmailConfig = async () => {
     return false;
   }
 };
+
+// Send appointment confirmation email
+export const sendAppointmentConfirmationEmail = async (appointment, doctor) => {
+  try {
+    const transporter = createTransporter();
+    const fromName = process.env.EMAIL_FROM || `"HelthBot" <${process.env.EMAIL_USER}>`;
+
+    const mailOptions = {
+      from: fromName,
+      to: appointment.patientEmail,
+      subject: 'Appointment Confirmed - HelthBot',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px;">
+          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
+            <h1 style="margin: 0; font-size: 28px;">HelthBot</h1>
+            <p style="margin-top: 10px; opacity: 0.9;">Appointment Confirmed</p>
+          </div>
+          <div style="background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px;">
+            <h2 style="color: #333;">Hello ${appointment.patientName},</h2>
+            <p style="color: #555;">Your appointment has been confirmed by Dr. ${doctor.name}.</p>
+            
+            <div style="background: #fff; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #667eea;">
+              <h3 style="color: #333; margin-top: 0;">Appointment Details</h3>
+              <p style="margin: 8px 0;"><strong>Doctor:</strong> Dr. ${doctor.name}</p>
+              <p style="margin: 8px 0;"><strong>Specialization:</strong> ${doctor.specialization}</p>
+              <p style="margin: 8px 0;"><strong>Date:</strong> ${new Date(appointment.appointmentDate).toLocaleDateString()}</p>
+              <p style="margin: 8px 0;"><strong>Time:</strong> ${appointment.appointmentTime}</p>
+              <p style="margin: 8px 0;"><strong>Reason:</strong> ${appointment.reason}</p>
+              <p style="margin: 8px 0;"><strong>Hospital:</strong> ${doctor.hospital}</p>
+              <p style="margin: 8px 0;"><strong>Location:</strong> ${doctor.location}</p>
+            </div>
+            
+            <p style="color: #666;">Please arrive 15 minutes before your scheduled time.</p>
+            <p style="color: #666;">If you need to reschedule or cancel, please contact us as soon as possible.</p>
+            
+            <div style="text-align: center; margin-top: 30px;">
+              <p style="color: #667eea; font-weight: bold;">Thank you for choosing HelthBot!</p>
+            </div>
+          </div>
+        </div>
+      `,
+    };
+
+    const info = await transporter.sendMail(mailOptions);
+    console.log('Appointment confirmation email sent to', appointment.patientEmail, '| Message ID:', info.messageId);
+    return true;
+  } catch (error) {
+    console.error('Failed to send appointment confirmation email:', error);
+    throw new Error('Failed to send appointment confirmation email');
+  }
+};
+
+// Send appointment cancellation email
+export const sendAppointmentCancellationEmail = async (appointment, doctor) => {
+  try {
+    const transporter = createTransporter();
+    const fromName = process.env.EMAIL_FROM || `"HelthBot" <${process.env.EMAIL_USER}>`;
+
+    const mailOptions = {
+      from: fromName,
+      to: appointment.patientEmail,
+      subject: 'Appointment Cancelled - HelthBot',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px;">
+          <div style="background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%); color: white; padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
+            <h1 style="margin: 0; font-size: 28px;">HelthBot</h1>
+            <p style="margin-top: 10px; opacity: 0.9;">Appointment Cancelled</p>
+          </div>
+          <div style="background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px;">
+            <h2 style="color: #333;">Hello ${appointment.patientName},</h2>
+            <p style="color: #555;">We regret to inform you that your appointment has been cancelled.</p>
+            
+            <div style="background: #fff; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #e74c3c;">
+              <h3 style="color: #333; margin-top: 0;">Cancelled Appointment Details</h3>
+              <p style="margin: 8px 0;"><strong>Doctor:</strong> Dr. ${doctor.name}</p>
+              <p style="margin: 8px 0;"><strong>Date:</strong> ${new Date(appointment.appointmentDate).toLocaleDateString()}</p>
+              <p style="margin: 8px 0;"><strong>Time:</strong> ${appointment.appointmentTime}</p>
+              <p style="margin: 8px 0;"><strong>Reason:</strong> ${appointment.reason}</p>
+            </div>
+            
+            <p style="color: #666;">Please contact us to reschedule your appointment at your convenience.</p>
+            
+            <div style="text-align: center; margin-top: 30px;">
+              <p style="color: #e74c3c; font-weight: bold;">We apologize for any inconvenience.</p>
+            </div>
+          </div>
+        </div>
+      `,
+    };
+
+    const info = await transporter.sendMail(mailOptions);
+    console.log('Appointment cancellation email sent to', appointment.patientEmail, '| Message ID:', info.messageId);
+    return true;
+  } catch (error) {
+    console.error('Failed to send appointment cancellation email:', error);
+    throw new Error('Failed to send appointment cancellation email');
+  }
+};
+
+// Send appointment approval email
+export const sendAppointmentApprovalEmail = async (appointment, doctor) => {
+  try {
+    const transporter = createTransporter();
+    const fromName = process.env.EMAIL_FROM || `"HelthBot" <${process.env.EMAIL_USER}>`;
+
+    const mailOptions = {
+      from: fromName,
+      to: appointment.patientEmail,
+      subject: 'Appointment Approved - HelthBot',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px;">
+          <div style="background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%); color: white; padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
+            <h1 style="margin: 0; font-size: 28px;">HelthBot</h1>
+            <p style="margin-top: 10px; opacity: 0.9;">Appointment Approved</p>
+          </div>
+          <div style="background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px;">
+            <h2 style="color: #333;">Hello ${appointment.patientName},</h2>
+            <p style="color: #555;">Great news! Your appointment request has been approved by Dr. ${doctor.name}.</p>
+            
+            <div style="background: #fff; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #27ae60;">
+              <h3 style="color: #333; margin-top: 0;">Approved Appointment Details</h3>
+              <p style="margin: 8px 0;"><strong>Doctor:</strong> Dr. ${doctor.name}</p>
+              <p style="margin: 8px 0;"><strong>Specialization:</strong> ${doctor.specialization}</p>
+              <p style="margin: 8px 0;"><strong>Date:</strong> ${new Date(appointment.appointmentDate).toLocaleDateString()}</p>
+              <p style="margin: 8px 0;"><strong>Time:</strong> ${appointment.appointmentTime}</p>
+              <p style="margin: 8px 0;"><strong>Reason:</strong> ${appointment.reason}</p>
+              <p style="margin: 8px 0;"><strong>Hospital:</strong> ${doctor.hospital}</p>
+              <p style="margin: 8px 0;"><strong>Location:</strong> ${doctor.location}</p>
+            </div>
+            
+            <p style="color: #666;">Please arrive 15 minutes before your scheduled time.</p>
+            <p style="color: #666;">If you need to reschedule or cancel, please contact us as soon as possible.</p>
+            
+            <div style="text-align: center; margin-top: 30px;">
+              <p style="color: #27ae60; font-weight: bold;">Thank you for choosing HelthBot!</p>
+            </div>
+          </div>
+        </div>
+      `,
+    };
+
+    const info = await transporter.sendMail(mailOptions);
+    console.log('Appointment approval email sent to', appointment.patientEmail, '| Message ID:', info.messageId);
+    return true;
+  } catch (error) {
+    console.error('Failed to send appointment approval email:', error);
+    throw new Error('Failed to send appointment approval email');
+  }
+};
+
+// Send appointment rejection email
+export const sendAppointmentRejectionEmail = async (appointment, doctor) => {
+  try {
+    const transporter = createTransporter();
+    const fromName = process.env.EMAIL_FROM || `"HelthBot" <${process.env.EMAIL_USER}>`;
+
+    const mailOptions = {
+      from: fromName,
+      to: appointment.patientEmail,
+      subject: 'Appointment Request Update - HelthBot',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px;">
+          <div style="background: linear-gradient(135deg, #e67e22 0%, #f39c12 100%); color: white; padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
+            <h1 style="margin: 0; font-size: 28px;">HelthBot</h1>
+            <p style="margin-top: 10px; opacity: 0.9;">Appointment Request Update</p>
+          </div>
+          <div style="background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px;">
+            <h2 style="color: #333;">Hello ${appointment.patientName},</h2>
+            <p style="color: #555;">We regret to inform you that your appointment request could not be approved at this time.</p>
+            
+            <div style="background: #fff; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #e67e22;">
+              <h3 style="color: #333; margin-top: 0;">Requested Appointment Details</h3>
+              <p style="margin: 8px 0;"><strong>Doctor:</strong> Dr. ${doctor.name}</p>
+              <p style="margin: 8px 0;"><strong>Date:</strong> ${new Date(appointment.appointmentDate).toLocaleDateString()}</p>
+              <p style="margin: 8px 0;"><strong>Time:</strong> ${appointment.appointmentTime}</p>
+              <p style="margin: 8px 0;"><strong>Reason:</strong> ${appointment.reason}</p>
+            </div>
+            
+            <p style="color: #666;">This could be due to scheduling conflicts or other factors. We encourage you to:</p>
+            <ul style="color: #666; padding-left: 20px;">
+              <li>Try booking with a different time slot</li>
+              <li>Consider booking with another doctor in the same specialization</li>
+              <li>Contact our support team for assistance</li>
+            </ul>
+            
+            <div style="text-align: center; margin-top: 30px;">
+              <p style="color: #e67e22; font-weight: bold;">We apologize for any inconvenience and look forward to serving you soon.</p>
+            </div>
+          </div>
+        </div>
+      `,
+    };
+
+    const info = await transporter.sendMail(mailOptions);
+    console.log('Appointment rejection email sent to', appointment.patientEmail, '| Message ID:', info.messageId);
+    return true;
+  } catch (error) {
+    console.error('Failed to send appointment rejection email:', error);
+    throw new Error('Failed to send appointment rejection email');
+  }
+};

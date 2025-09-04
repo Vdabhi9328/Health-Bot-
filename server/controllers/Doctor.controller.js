@@ -201,7 +201,7 @@ export const loginDoctor = async (req, res) => {
 
     const token = jwt.sign(
       { 
-        id: doctor._id, 
+        userId: doctor._id,   // ✅ consistency fix
         role: 'doctor' 
       }, 
       process.env.JWT_SECRET, 
@@ -286,6 +286,95 @@ export const updateDoctorById = async (req, res) => {
     return res.status(500).json({ 
       success: false, 
       message: 'Failed to update doctor' 
+    });
+  }
+};
+
+// Create demo doctors for testing
+export const createDemoDoctors = async (req, res) => {
+  try {
+    const demoDoctors = [
+      {
+        _id: '507f1f77bcf86cd799439011',
+        name: 'Dr. Kuljeet',
+        specialization: 'Cardiology',
+        location: 'Anand, Gujarat',
+        hospital: 'Krishna Hospital',
+        phone: '9313232981',
+        email: 'krishna@hospital.com',
+        experience: '5 years',
+        password: await bcrypt.hash('demo123', 12),
+        role: 'doctor',
+        isEmailVerified: true
+      },
+      {
+        _id: '507f1f77bcf86cd799439012',
+        name: 'Dr. Poojan Shah',
+        specialization: 'Dermatology',
+        location: 'Nadiad, Gujarat',
+        hospital: 'Arshvi Medical Center',
+        phone: '9090998908',
+        email: 'shah@hospital.com',
+        experience: '10 years',
+        password: await bcrypt.hash('demo123', 12),
+        role: 'doctor',
+        isEmailVerified: true
+      },
+      {
+        _id: '507f1f77bcf86cd799439013',
+        name: 'Dr. Vishwa Patel',
+        specialization: 'Pediatrics',
+        location: 'Anand, Gujarat',
+        hospital: 'Leeds Children\'s Hospital',
+        phone: '8909678900',
+        email: 'vishva@hospital.com',
+        experience: '10 years',
+        password: await bcrypt.hash('demo123', 12),
+        role: 'doctor',
+        isEmailVerified: true
+      },
+      {
+        _id: '507f1f77bcf86cd799439014',
+        name: 'Dr. Vimal Kumar',
+        specialization: 'Orthopedics',
+        location: 'Nadiad, Gujarat',
+        hospital: 'DDIT Hospital',
+        phone: '9087690870',
+        email: 'vimal.kumar@hospital.com',
+        experience: '20 years',
+        password: await bcrypt.hash('demo123', 12),
+        role: 'doctor',
+        isEmailVerified: true
+      }
+    ];
+
+    // Clear existing demo doctors
+    await Doctor.deleteMany({
+      _id: { $in: demoDoctors.map(d => d._id) }
+    });
+
+    // Insert demo doctors
+    const insertedDoctors = await Doctor.insertMany(demoDoctors);
+
+    return res.status(201).json({
+      success: true,
+      message: 'Demo doctors created successfully',
+      doctors: insertedDoctors.map(d => ({
+        _id: d._id,
+        name: d.name,
+        specialization: d.specialization,
+        location: d.location,
+        hospital: d.hospital,
+        phone: d.phone,
+        email: d.email,
+        experience: d.experience
+      }))
+    });
+  } catch (error) {
+    console.error('Create demo doctors error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to create demo doctors'
     });
   }
 };
