@@ -65,7 +65,6 @@ export const getChatHistory = async (req, res) => {
   try {
     const { userId } = req.params;
     
-    // For now, return empty history
     // In a real implementation, you'd store chat history in database
     res.json({
       success: true,

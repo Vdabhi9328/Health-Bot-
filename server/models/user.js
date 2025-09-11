@@ -25,7 +25,13 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: 'patient',
     enum: ['patient', 'doctor', 'admin']
-  }
+  },
+  tokens: [
+    {
+      token: { type: String },
+      createdAt: { type: Date, default: Date.now }
+    }
+  ]
 }, {
   timestamps: true
 });

@@ -46,7 +46,30 @@ const doctorSchema = new mongoose.Schema({
     type: String,
     default: 'doctor',
     enum: ['doctor']
-  }
+  },
+  medicalCertificate: {
+    type: String, // file path or cloud URL
+    required: true
+  },
+  identityCertificate: {
+    type: String, // file path or cloud URL for identity proof
+    required: true
+  },
+  status: {
+    type: String,
+    enum: ["pending", "approved", "rejected"],
+    default: "pending"
+  },
+  isApproved: {
+    type: Boolean,
+    default: false
+  },
+  tokens: [
+    {
+      token: { type: String },
+      createdAt: { type: Date, default: Date.now }
+    }
+  ]
 }, { 
   timestamps: true 
 });

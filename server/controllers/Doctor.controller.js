@@ -2,6 +2,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import Doctor from '../models/doctor.js';
 import { generateOTP, sendOTPEmail } from '../utils/emailService.js';
+import path from 'path';
 
 export const registerDoctor = async (req, res) => {
   try {
@@ -21,6 +22,16 @@ export const registerDoctor = async (req, res) => {
       return res.status(400).json({ 
         success: false, 
         message: 'All fields are required' 
+      });
+    }
+
+    // Check if both certificate files were uploaded
+    const uploadedCertificate = req.files?.certificate?.[0];
+    const uploadedIdentity = req.files?.identityCertificate?.[0];
+    if (!uploadedCertificate || !uploadedIdentity) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Both medical certificate and identity proof are required' 
       });
     }
 
@@ -51,6 +62,18 @@ export const registerDoctor = async (req, res) => {
     const otp = generateOTP();
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
+    // Normalize stored path to be web-accessible under /uploads
+    const normalizePathToWeb = (absolutePath) => {
+      // stored upload path is like 'server/uploads/certificates/xxx.ext'
+      const parts = absolutePath.split('server' + path.sep + 'uploads' + path.sep);
+      if (parts.length === 2) {
+        return `uploads/${parts[1].replace(/\\/g, '/')}`;
+      }
+      // fallback: make relative from server/uploads
+      const idx = absolutePath.lastIndexOf('uploads');
+      return idx !== -1 ? absolutePath.substring(idx).replace(/\\/g, '/') : absolutePath;
+    };
+
     const doctor = new Doctor({
       name,
       email,
@@ -62,6 +85,9 @@ export const registerDoctor = async (req, res) => {
       location,
       role: 'doctor',
       isEmailVerified: false,
+      medicalCertificate: normalizePathToWeb(uploadedCertificate.path),
+      identityCertificate: normalizePathToWeb(uploadedIdentity.path),
+      status: 'pending', // Set status to pending for admin approval
       otp: {
         code: otp,
         expiresAt: otpExpiry
@@ -82,7 +108,7 @@ export const registerDoctor = async (req, res) => {
 
     return res.status(201).json({ 
       success: true, 
-      message: 'Doctor registered successfully, OTP sent to email',
+      message: 'Doctor registered successfully, OTP sent to email. Please wait for admin approval after verification.',
       email: email
     });
   } catch (error) {
@@ -154,7 +180,7 @@ export const verifyDoctorOTP = async (req, res) => {
 
     return res.status(200).json({ 
       success: true, 
-      message: 'Doctor verified successfully',
+      message: 'Your registration has been submitted. Please wait for admin approval.',
       email: email
     });
   } catch (error) {
@@ -191,6 +217,28 @@ export const loginDoctor = async (req, res) => {
       });
     }
 
+    // Check doctor status for admin approval
+    if (doctor.status === 'pending') {
+      return res.status(403).json({ 
+        success: false, 
+        message: 'Admin approval pending' 
+      });
+    }
+
+    if (doctor.status === 'rejected') {
+      return res.status(403).json({ 
+        success: false, 
+        message: 'Your registration request has been rejected.' 
+      });
+    }
+
+    if (doctor.status !== 'approved') {
+      return res.status(403).json({ 
+        success: false, 
+        message: 'Your account is not approved yet.' 
+      });
+    }
+
     const isMatch = await bcrypt.compare(password, doctor.password);
     if (!isMatch) {
       return res.status(401).json({ 
@@ -201,12 +249,19 @@ export const loginDoctor = async (req, res) => {
 
     const token = jwt.sign(
       { 
-        userId: doctor._id,   // ✅ consistency fix
+        userId: doctor._id, 
         role: 'doctor' 
       }, 
       process.env.JWT_SECRET, 
       { expiresIn: '7d' }
     );
+
+    // store token for doctor
+    try {
+      await Doctor.findByIdAndUpdate(doctor._id, { $push: { tokens: { token, createdAt: new Date() } } });
+    } catch (e) {
+      console.error('Doctor token store error:', e);
+    }
 
     return res.status(200).json({ 
       success: true, 
@@ -286,95 +341,6 @@ export const updateDoctorById = async (req, res) => {
     return res.status(500).json({ 
       success: false, 
       message: 'Failed to update doctor' 
-    });
-  }
-};
-
-// Create demo doctors for testing
-export const createDemoDoctors = async (req, res) => {
-  try {
-    const demoDoctors = [
-      {
-        _id: '507f1f77bcf86cd799439011',
-        name: 'Dr. Kuljeet',
-        specialization: 'Cardiology',
-        location: 'Anand, Gujarat',
-        hospital: 'Krishna Hospital',
-        phone: '9313232981',
-        email: 'krishna@hospital.com',
-        experience: '5 years',
-        password: await bcrypt.hash('demo123', 12),
-        role: 'doctor',
-        isEmailVerified: true
-      },
-      {
-        _id: '507f1f77bcf86cd799439012',
-        name: 'Dr. Poojan Shah',
-        specialization: 'Dermatology',
-        location: 'Nadiad, Gujarat',
-        hospital: 'Arshvi Medical Center',
-        phone: '9090998908',
-        email: 'shah@hospital.com',
-        experience: '10 years',
-        password: await bcrypt.hash('demo123', 12),
-        role: 'doctor',
-        isEmailVerified: true
-      },
-      {
-        _id: '507f1f77bcf86cd799439013',
-        name: 'Dr. Vishwa Patel',
-        specialization: 'Pediatrics',
-        location: 'Anand, Gujarat',
-        hospital: 'Leeds Children\'s Hospital',
-        phone: '8909678900',
-        email: 'vishva@hospital.com',
-        experience: '10 years',
-        password: await bcrypt.hash('demo123', 12),
-        role: 'doctor',
-        isEmailVerified: true
-      },
-      {
-        _id: '507f1f77bcf86cd799439014',
-        name: 'Dr. Vimal Kumar',
-        specialization: 'Orthopedics',
-        location: 'Nadiad, Gujarat',
-        hospital: 'DDIT Hospital',
-        phone: '9087690870',
-        email: 'vimal.kumar@hospital.com',
-        experience: '20 years',
-        password: await bcrypt.hash('demo123', 12),
-        role: 'doctor',
-        isEmailVerified: true
-      }
-    ];
-
-    // Clear existing demo doctors
-    await Doctor.deleteMany({
-      _id: { $in: demoDoctors.map(d => d._id) }
-    });
-
-    // Insert demo doctors
-    const insertedDoctors = await Doctor.insertMany(demoDoctors);
-
-    return res.status(201).json({
-      success: true,
-      message: 'Demo doctors created successfully',
-      doctors: insertedDoctors.map(d => ({
-        _id: d._id,
-        name: d.name,
-        specialization: d.specialization,
-        location: d.location,
-        hospital: d.hospital,
-        phone: d.phone,
-        email: d.email,
-        experience: d.experience
-      }))
-    });
-  } catch (error) {
-    console.error('Create demo doctors error:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Failed to create demo doctors'
     });
   }
 };

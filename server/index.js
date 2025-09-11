@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import cookieParser from 'cookie-parser';
 import authRoutes from './routes/authRoutes.js';
 import doctorRoutes from './routes/doctorRoutes.js';
+import adminRoutes from './routes/adminRoutes.js';
 import symptomsRoutes from './routes/symptomsRoutes.js';
 import appointmentRoutes from './routes/appointmentRoutes.js';
 import chatRoutes from './routes/chatRoutes.js';
@@ -33,7 +34,19 @@ app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+app.use('/uploads', express.static(path.join(process.cwd(), 'server', 'uploads')));
 app.use(express.static(path.join(process.cwd(), 'client', 'dist')));
+
+// Explicit download endpoint to avoid SPA fallback interfering
+app.get('/uploads/:type/:filename', (req, res) => {
+  const { type, filename } = req.params;
+  const filePath = path.join(process.cwd(), 'server', 'uploads', type, filename);
+  res.download(filePath, (err) => {
+    if (err) {
+      return res.status(404).json({ success: false, message: 'File not found' });
+    }
+  });
+});
 
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log('Connected to MongoDB'))
@@ -44,6 +57,7 @@ mongoose.connect(process.env.MONGODB_URI)
 
 app.use('/api/auth', authRoutes);
 app.use('/api/doctors', doctorRoutes);
+app.use('/api/admin', adminRoutes);
 app.use('/api', symptomsRoutes);
 app.use('/api/appointments', appointmentRoutes);
 app.use('/api', chatRoutes);

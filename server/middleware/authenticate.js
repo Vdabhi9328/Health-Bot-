@@ -1,4 +1,6 @@
 import jwt from 'jsonwebtoken'
+import User from '../models/user.js';
+import Doctor from '../models/doctor.js';
 
 export const authenticate = async (req, res, next) => {
     try {
@@ -15,7 +17,34 @@ export const authenticate = async (req, res, next) => {
         }
         
         const decodeToken = jwt.verify(token, process.env.JWT_SECRET);
+
+        // Attach decoded first
         req.user = decodeToken;
+
+        // Validate token exists in DB tokens[] for the user (skip for hardcoded admin)
+        if (decodeToken.role === 'admin' && decodeToken._id === 'admin_id') {
+            return next();
+        }
+
+        const userId = decodeToken._id || decodeToken.userId || decodeToken.id;
+        const role = decodeToken.role;
+
+        let account = null;
+        if (role === 'doctor') {
+            account = await Doctor.findById(userId).select('tokens');
+        } else {
+            account = await User.findById(userId).select('tokens');
+        }
+
+        if (!account) {
+            return res.status(401).json({ success: false, message: 'Unauthorized: user not found' });
+        }
+
+        const hasToken = (account.tokens || []).some(t => t.token === token);
+        if (!hasToken) {
+            return res.status(401).json({ success: false, message: 'Unauthorized: token invalidated' });
+        }
+
         next();
     } catch (error) {
         console.error('Authentication error:', error);

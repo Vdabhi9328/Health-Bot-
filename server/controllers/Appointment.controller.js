@@ -1,7 +1,7 @@
 import Appointment from '../models/appointment.js';
 import Doctor from '../models/doctor.js';
 import mongoose from 'mongoose';
-import { sendAppointmentConfirmationEmail, sendAppointmentCancellationEmail, sendAppointmentApprovalEmail, sendAppointmentRejectionEmail } from '../utils/emailService.js';
+import { sendAppointmentConfirmationEmail, sendAppointmentCancellationEmail } from '../utils/emailService.js';
 
 // Book a new appointment
 export const bookAppointment = async (req, res) => {

@@ -62,6 +62,18 @@ export const signup = async (req, res, next) => {
 
       await doctor.save();
 
+      // generate and store token upon registration (optional pre-verification token)
+      try {
+        const token = jwt.sign(
+          { _id: doctor._id, name: doctor.name, email: doctor.email, role: 'doctor' },
+          process.env.JWT_SECRET,
+          { expiresIn: '7d' }
+        );
+        await Doctor.findByIdAndUpdate(doctor._id, { $push: { tokens: { token, createdAt: new Date() } } });
+      } catch (e) {
+        console.error('Failed to create registration token for doctor:', e);
+      }
+
       try {
         await sendOTPEmail(email, otp, name);
       } catch (emailError) {
@@ -86,6 +98,18 @@ export const signup = async (req, res, next) => {
       });
 
       await user.save();
+
+      // generate and store token upon registration (optional pre-verification token)
+      try {
+        const token = jwt.sign(
+          { _id: user._id, name: user.name, email: user.email, role: 'patient' },
+          process.env.JWT_SECRET,
+          { expiresIn: '7d' }
+        );
+        await User.findByIdAndUpdate(user._id, { $push: { tokens: { token, createdAt: new Date() } } });
+      } catch (e) {
+        console.error('Failed to create registration token for user:', e);
+      }
 
       try {
         await sendOTPEmail(email, otp, name);
@@ -248,6 +272,16 @@ export const login = async (req, res, next) => {
       });
     }
 
+    // If doctor, block login unless approved
+    if (userRole === 'doctor') {
+      if (user.status !== 'approved') {
+        return res.status(403).json({
+          success: false,
+          message: 'Your account is pending admin approval'
+        });
+      }
+    }
+
     const isPasswordValid = await bcryptjs.compare(password, user.password);
     if (!isPasswordValid) {
       return res.status(401).json({
@@ -266,6 +300,17 @@ export const login = async (req, res, next) => {
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
+
+    // store token
+    try {
+      if (userRole === 'doctor') {
+        await Doctor.findByIdAndUpdate(user._id, { $push: { tokens: { token, createdAt: new Date() } } });
+      } else {
+        await User.findByIdAndUpdate(user._id, { $push: { tokens: { token, createdAt: new Date() } } });
+      }
+    } catch (e) {
+      console.error('Failed to store token:', e);
+    }
 
     const userResponse = {
       _id: user._id,
@@ -350,10 +395,41 @@ export const resendOTP = async (req, res, next) => {
 
 export const logout = async (req, res, next) => {
   try {
-    res.status(200).json({
-      success: true,
-      message: 'Logout successful.'
-    });
+    // Extract token from Authorization header or cookie
+    let token = req.cookies?.access_token;
+    if (!token && req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+      token = req.headers.authorization.split(' ')[1];
+    }
+
+    if (!token) {
+      return res.status(200).json({ success: true, message: 'Logout successful.' });
+    }
+
+    // Verify token to get user info
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET);
+    } catch (_e) {
+      // If invalid/expired, treat as logged out
+      return res.status(200).json({ success: true, message: 'Logout successful.' });
+    }
+
+    const userId = decoded._id || decoded.userId || decoded.id;
+    const role = decoded.role;
+
+    try {
+      if (role === 'doctor') {
+        await Doctor.findByIdAndUpdate(userId, { $pull: { tokens: { token } } });
+      } else if (role === 'admin') {
+        // no-op for hardcoded admin
+      } else {
+        await User.findByIdAndUpdate(userId, { $pull: { tokens: { token } } });
+      }
+    } catch (e) {
+      console.error('Logout token removal error:', e);
+    }
+
+    res.status(200).json({ success: true, message: 'Logout successful.' });
   } catch (error) {
     console.error('Logout error:', error);
     res.status(500).json({
