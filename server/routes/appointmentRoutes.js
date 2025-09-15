@@ -10,7 +10,9 @@ import {
   getAppointmentById,
   cancelAppointment,
   getAppointmentStats,
-  getAllAppointments
+  getAllAppointments,
+  getPatientHistoryWithDoctor,
+  getPatientAppointmentsWithFilter
 } from '../controllers/Appointment.controller.js';
 
 const router = express.Router();
@@ -36,6 +38,10 @@ router.get('/stats/:doctorId', authenticate, getAppointmentStats);
 router.get('/:appointmentId', authenticate, getAppointmentById);
 router.put('/:appointmentId/status', authenticate, updateAppointmentStatus);
 router.put('/:appointmentId/cancel', authenticate, cancelAppointment);
+
+// New routes for patient history and appointments
+router.get('/doctor/:doctorId/patient/:patientId/history', authenticate, getPatientHistoryWithDoctor);
+router.get('/patient/:patientId/appointments', authenticate, getPatientAppointmentsWithFilter);
 
 // Admin routes
 router.get('/admin/all', authenticate, getAllAppointments);

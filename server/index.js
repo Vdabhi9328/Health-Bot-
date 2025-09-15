@@ -27,9 +27,14 @@ process.env.EMAIL_PASS = process.env.EMAIL_PASS || 'your-app-password';
 console.log('Environment variables loaded. Using defaults for development.');
 
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:3000',
-  credentials: true
+  origin: process.env.CLIENT_URL || 'http://localhost:5173',
+  credentials: true,
 }));
+// Simple request logger to debug incoming requests
+app.use((req, res, next) => {
+  console.log(`${req.method} ${req.originalUrl}`);
+  next();
+});
 app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));

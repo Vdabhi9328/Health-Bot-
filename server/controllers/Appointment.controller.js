@@ -7,6 +7,7 @@ import { sendAppointmentConfirmationEmail, sendAppointmentCancellationEmail } fr
 export const bookAppointment = async (req, res) => {
   try {
     const {
+      patientId,
       patientName,
       patientEmail,
       patientPhone,
@@ -93,6 +94,7 @@ export const bookAppointment = async (req, res) => {
 
     // Create new appointment
     const appointment = new Appointment({
+      patientId: patientId || null, // Include patientId if provided
       patientName,
       patientEmail,
       patientPhone,
@@ -574,6 +576,173 @@ export const getAllAppointments = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch appointments'
+    });
+  }
+};
+
+// Get patient's appointment history with a specific doctor
+export const getPatientHistoryWithDoctor = async (req, res) => {
+  try {
+    const { doctorId, patientId } = req.params;
+
+    // Validate IDs format
+    if (!mongoose.Types.ObjectId.isValid(doctorId) || !mongoose.Types.ObjectId.isValid(patientId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid doctor ID or patient ID format'
+      });
+    }
+
+    // Verify that the requesting user is the doctor or has permission
+    if (req.user._id !== doctorId && req.user.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. You can only view your own patients\' history.'
+      });
+    }
+
+    // Get patient email from User model for backward compatibility
+    const User = mongoose.model('User');
+    const patient = await User.findById(patientId).select('email');
+    
+    // Find appointments between this doctor and patient
+    const appointments = await Appointment.find({
+      doctorId: new mongoose.Types.ObjectId(doctorId),
+      $or: [
+        { patientId: new mongoose.Types.ObjectId(patientId) },
+        { patientEmail: patient?.email } // Match by email for backward compatibility
+      ]
+    })
+      .populate('patientId', 'name email')
+      .sort({ appointmentDate: -1, appointmentTime: -1 })
+      .select('-__v');
+
+    // Filter appointments to ensure they belong to the correct patient
+    const filteredAppointments = appointments.filter(appointment => {
+      if (appointment.patientId) {
+        return appointment.patientId._id.toString() === patientId;
+      }
+      // For backward compatibility, match by email
+      return appointment.patientEmail === patient?.email;
+    });
+
+    res.status(200).json({
+      success: true,
+      appointments: filteredAppointments,
+      count: filteredAppointments.length
+    });
+
+  } catch (error) {
+    console.error('Get patient history with doctor error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch patient history'
+    });
+  }
+};
+
+// Get patient's appointments with date filtering
+export const getPatientAppointmentsWithFilter = async (req, res) => {
+  try {
+    const { patientId } = req.params;
+    const { filter } = req.query; // 3months, 6months, 12months
+
+    // Validate patientId format
+    if (!mongoose.Types.ObjectId.isValid(patientId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid patient ID format'
+      });
+    }
+
+    // Verify that the requesting user is the patient or has permission
+    if (req.user._id !== patientId && req.user.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. You can only view your own appointments.'
+      });
+    }
+
+    // Calculate date filter
+    let dateFilter = {};
+    const now = new Date();
+    
+    if (filter) {
+      let monthsBack = 3; // default
+      switch (filter) {
+        case '3months':
+          monthsBack = 3;
+          break;
+        case '6months':
+          monthsBack = 6;
+          break;
+        case '12months':
+          monthsBack = 12;
+          break;
+        default:
+          monthsBack = 3;
+      }
+      
+      const filterDate = new Date();
+      filterDate.setMonth(filterDate.getMonth() - monthsBack);
+      dateFilter.appointmentDate = { $gte: filterDate };
+    }
+
+    // Get patient email from User model for backward compatibility
+    const User = mongoose.model('User');
+    const patient = await User.findById(patientId).select('email');
+    
+    // Build query
+    const query = {
+      $or: [
+        { patientId: new mongoose.Types.ObjectId(patientId) },
+        { patientEmail: patient?.email } // Match by email for backward compatibility
+      ],
+      ...dateFilter
+    };
+
+    const appointments = await Appointment.find(query)
+      .populate('doctorId', 'name specialization hospital location phone email')
+      .populate('patientId', 'name email')
+      .sort({ appointmentDate: -1, appointmentTime: -1 })
+      .select('-__v');
+
+    // Filter appointments to ensure they belong to the correct patient
+    const filteredAppointments = appointments.filter(appointment => {
+      if (appointment.patientId) {
+        return appointment.patientId._id.toString() === patientId;
+      }
+      // For backward compatibility, match by email
+      return appointment.patientEmail === patient?.email;
+    });
+
+    // Separate upcoming and completed appointments
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const upcomingAppointments = filteredAppointments.filter(apt => 
+      new Date(apt.appointmentDate) >= today
+    );
+    
+    const completedAppointments = filteredAppointments.filter(apt => 
+      new Date(apt.appointmentDate) < today
+    );
+
+    res.status(200).json({
+      success: true,
+      appointments: filteredAppointments,
+      upcomingAppointments,
+      completedAppointments,
+      count: filteredAppointments.length,
+      upcomingCount: upcomingAppointments.length,
+      completedCount: completedAppointments.length
+    });
+
+  } catch (error) {
+    console.error('Get patient appointments with filter error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch patient appointments'
     });
   }
 };

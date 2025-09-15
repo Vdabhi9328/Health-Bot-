@@ -2,6 +2,11 @@ import mongoose from 'mongoose';
 
 const appointmentSchema = new mongoose.Schema({
   // Patient Information
+  patientId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: false // Making it optional for backward compatibility
+  },
   patientName: {
     type: String,
     required: true
@@ -99,6 +104,10 @@ const appointmentSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+  medicines: {
+    type: String,
+    default: ''
+  },
   diagnosis: {
     type: String,
     default: ''
@@ -110,6 +119,8 @@ const appointmentSchema = new mongoose.Schema({
 // Index for better query performance
 appointmentSchema.index({ doctorId: 1, appointmentDate: 1 });
 appointmentSchema.index({ patientEmail: 1 });
+appointmentSchema.index({ patientId: 1 });
+appointmentSchema.index({ doctorId: 1, patientId: 1 });
 appointmentSchema.index({ status: 1 });
 
 // Pre-save middleware to update updatedAt
